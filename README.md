@@ -40,7 +40,7 @@ type ServiceBImpl struct {
 }
 
 func yourInitFunc() {
-	i := injector.New()
+  i := injector.New()
 
   // add ServiceAImpl to the injector
   i.MustRegister(&ServiceAImpl{})
