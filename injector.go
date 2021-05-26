@@ -1,3 +1,21 @@
+// Package injector provides a reflect-based injection solution where each dependency is
+// identified by an unique name. A large application built with dependency
+// injection in mind find difficulties in managing and injecting dependencies.
+// This library attempts to take care of it by containing all dependencies in
+// a central container and injecting requested dependencies automatically. Its use is
+// simple that you use Register method to register a dependency. The library will
+// search for tagged fields and try to inject requested dependencies.
+//
+// It works using Go's reflection package and is inherently limited in what it
+// can do as opposed to a code-gen system with respect to private fields.
+//
+// The usage pattern for the library involves struct tags. It requires the tag
+// format used by the various standard libraries, like json, xml etc. It
+// involves tags in one of the form below:
+//
+//     `injector:"logger"`
+//
+// The above form is asking for a named dependency called "logger".
 package injector
 
 import (
@@ -17,13 +35,13 @@ type dependency struct {
 	reflectType  reflect.Type
 }
 
-// Container contains all dependencies. A dependency container can be created by New method.
-type Container struct {
+// Injector contains all dependencies. An injector can be created by New method.
+type Injector struct {
 	dependencies   map[string]*dependency
 	unnamedCounter int
 }
 
-// Register registers new dependency with a name to the Container. As name has to be unique,
+// RegisterNamed registers new dependency with a name to the Injector. As name has to be unique,
 // it returns an error if name is not unique. An error is also returned if the function is unable to inject dependencies.
 // A factory function can be used:
 //
@@ -31,9 +49,9 @@ type Container struct {
 //   // initialize a new logger
 // }
 //
-// we then use c.Register("logger", newLogger) to register the logger dependency with that function.
+// we then use c.RegisterNamed("logger", newLogger) to register the logger dependency with that function.
 // dependencies are also injected to the newly created struct from the factory function.
-func (c *Container) Register(name string, dep interface{}) error {
+func (c *Injector) RegisterNamed(name string, dep interface{}) error {
 	if _, found := c.dependencies[name]; found {
 		return fmt.Errorf("injector: %s is already registered", name)
 	}
@@ -67,17 +85,17 @@ func (c *Container) Register(name string, dep interface{}) error {
 	return nil
 }
 
-// MustRegister is the similar to Register. Instead of returning an error,
+// MustRegisterNamed is the similar to RegisterNamed. Instead of returning an error,
 // it panics if anything goes wrong.
-func (c *Container) MustRegister(name string, dep interface{}) {
-	if err := c.Register(name, dep); err != nil {
+func (c *Injector) MustRegisterNamed(name string, dep interface{}) {
+	if err := c.RegisterNamed(name, dep); err != nil {
 		panic(err)
 	}
 }
 
-// Get loads a dependency from the Container using name.
+// Get loads a dependency from the Injector using name.
 // It returns an error if the requested dependency couldn't be found.
-func (c *Container) Get(name string) (interface{}, error) {
+func (c *Injector) Get(name string) (interface{}, error) {
 	dep, found := c.dependencies[name]
 	if !found {
 		return nil, errors.New("injector: the requested dependency couldn't be found")
@@ -88,7 +106,7 @@ func (c *Container) Get(name string) (interface{}, error) {
 
 // MustGet is the similar to Get. Instead of returning an error,
 // it panics if anything goes wrong.
-func (c *Container) MustGet(name string) interface{} {
+func (c *Injector) MustGet(name string) interface{} {
 	dep, err := c.Get(name)
 	if err != nil {
 		panic(err)
@@ -97,10 +115,10 @@ func (c *Container) MustGet(name string) interface{} {
 	return dep
 }
 
-// Unnamed registers a new dependency without specifying the name.
+// Register registers a new dependency without specifying the name.
 // It's handy for injecting by types. However, supporting by names won't be supported.
 // One must be careful when injecting by types as it can cause conflicts easily.
-func (c *Container) Unnamed(dep interface{}) error {
+func (c *Injector) Register(dep interface{}) error {
 	for {
 		newName := fmt.Sprintf("%s.%d", unnamedPrefix, c.unnamedCounter)
 		if _, ok := c.dependencies[newName]; ok {
@@ -108,20 +126,20 @@ func (c *Container) Unnamed(dep interface{}) error {
 			continue
 		}
 
-		return c.Register(newName, dep)
+		return c.RegisterNamed(newName, dep)
 	}
 }
 
-// MustUnnamed is similar to Unnamed. Instead of returning an error, it will panic if there is any error.
-func (c *Container) MustUnnamed(dep interface{}) {
-	if err := c.Unnamed(dep); err != nil {
+// MustRegister is similar to Register. Instead of returning an error, it will panic if there is any error.
+func (c *Injector) MustRegister(dep interface{}) {
+	if err := c.Register(dep); err != nil {
 		panic(err)
 	}
 }
 
 // Inject injects dependencies to a given object. It returns error if there is any.
 // The object should be a pointer of struct, otherwise dependencies won't be injected.
-func (c *Container) Inject(object interface{}) error {
+func (c *Injector) Inject(object interface{}) error {
 	dep := &dependency{
 		value:        object,
 		reflectType:  reflect.TypeOf(object),
@@ -131,7 +149,7 @@ func (c *Container) Inject(object interface{}) error {
 	return c.populate(dep)
 }
 
-func (c *Container) populate(dep *dependency) error {
+func (c *Injector) populate(dep *dependency) error {
 	if !isStructPtr(dep.reflectType) {
 		if hasInjectTag(dep) {
 			return fmt.Errorf("injector: %s is not injectable, a pointer is expected", dep.reflectType)
@@ -165,7 +183,7 @@ func (c *Container) populate(dep *dependency) error {
 	return nil
 }
 
-func (c *Container) loadDepForTag(tag string, t reflect.Type) (*dependency, error) {
+func (c *Injector) loadDepForTag(tag string, t reflect.Type) (*dependency, error) {
 	if tag == autoInjectionTag {
 		return c.findByType(t)
 	}
@@ -178,7 +196,7 @@ func (c *Container) loadDepForTag(tag string, t reflect.Type) (*dependency, erro
 	return loadedDep, nil
 }
 
-func (c *Container) executeFunc(fn interface{}, fnType reflect.Type) (*dependency, error) {
+func (c *Injector) executeFunc(fn interface{}, fnType reflect.Type) (*dependency, error) {
 	if fnType.NumOut() > 2 || fnType.NumOut() < 1 {
 		return nil, errors.New("injector: unsupported factory function")
 	}
@@ -207,7 +225,7 @@ func (c *Container) executeFunc(fn interface{}, fnType reflect.Type) (*dependenc
 	return newDep, nil
 }
 
-func (c *Container) generateInParams(fnType reflect.Type) ([]reflect.Value, error) {
+func (c *Injector) generateInParams(fnType reflect.Type) ([]reflect.Value, error) {
 	params := make([]reflect.Value, fnType.NumIn())
 	for i := 0; i < fnType.NumIn(); i++ {
 		param, err := c.findByType(fnType.In(i))
@@ -221,7 +239,7 @@ func (c *Container) generateInParams(fnType reflect.Type) ([]reflect.Value, erro
 	return params, nil
 }
 
-func (c *Container) findByType(t reflect.Type) (*dependency, error) {
+func (c *Injector) findByType(t reflect.Type) (*dependency, error) {
 	var foundVal *dependency
 	for _, v := range c.dependencies {
 		if v.reflectType.AssignableTo(t) {
@@ -238,4 +256,11 @@ func (c *Container) findByType(t reflect.Type) (*dependency, error) {
 	}
 
 	return foundVal, nil
+}
+
+// New creates a new instance of Injector.
+func New() *Injector {
+	return &Injector{
+		dependencies: map[string]*dependency{},
+	}
 }

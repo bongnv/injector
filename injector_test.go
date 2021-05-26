@@ -28,9 +28,9 @@ func Test_Register(t *testing.T) {
 		c := New()
 		a := &TypeA{}
 		b := &TypeB{}
-		require.NoError(t, c.Register("mocked-int", 10))
-		require.NoError(t, c.Register("type-a", a))
-		require.NoError(t, c.Register("type-b", b))
+		require.NoError(t, c.RegisterNamed("mocked-int", 10))
+		require.NoError(t, c.RegisterNamed("type-a", a))
+		require.NoError(t, c.RegisterNamed("type-b", b))
 		require.EqualValues(t, 10, a.Field)
 		require.EqualValues(t, a, b.Field)
 	})
@@ -38,41 +38,41 @@ func Test_Register(t *testing.T) {
 	t.Run("not-assignable", func(t *testing.T) {
 		c := New()
 		a := &TypeA{}
-		require.NoError(t, c.Register("mocked-int", "1000"))
-		err := c.Register("type-a", a)
+		require.NoError(t, c.RegisterNamed("mocked-int", "1000"))
+		err := c.RegisterNamed("type-a", a)
 		require.EqualError(t, err, "injector: int is not assignable from string")
 	})
 
 	t.Run("not-assignable-pointer-expected", func(t *testing.T) {
 		c := New()
 		a := &TypeA{}
-		require.NoError(t, c.Register("mocked-int", 1000))
-		require.NoError(t, c.Register("type-a", a))
-		err := c.Register("type-c", TypeC{})
+		require.NoError(t, c.RegisterNamed("mocked-int", 1000))
+		require.NoError(t, c.RegisterNamed("type-a", a))
+		err := c.RegisterNamed("type-c", TypeC{})
 		require.EqualError(t, err, "injector: injector.TypeC is not injectable, a pointer is expected")
 	})
 
 	t.Run("missing-dependency", func(t *testing.T) {
 		c := New()
 		b := &TypeB{}
-		require.NoError(t, c.Register("mocked-int", "1000"))
-		err := c.Register("type-b", b)
+		require.NoError(t, c.RegisterNamed("mocked-int", "1000"))
+		err := c.RegisterNamed("type-b", b)
 		require.EqualError(t, err, "injector: type-a is not registered")
 	})
 
 	t.Run("duplicate-registration", func(t *testing.T) {
 		c := New()
 		a := &TypeA{}
-		require.NoError(t, c.Register("type-a", 10))
-		err := c.Register("type-a", a)
+		require.NoError(t, c.RegisterNamed("type-a", 10))
+		err := c.RegisterNamed("type-a", a)
 		require.EqualError(t, err, "injector: type-a is already registered")
 	})
 
 	t.Run("duplicate-registration", func(t *testing.T) {
 		c := New()
 		a := &TypeA{}
-		require.NoError(t, c.Register("type-a", 10))
-		err := c.Register("type-a", a)
+		require.NoError(t, c.RegisterNamed("type-a", 10))
+		err := c.RegisterNamed("type-a", a)
 		require.EqualError(t, err, "injector: type-a is already registered")
 	})
 }
@@ -81,8 +81,8 @@ func Test_Get(t *testing.T) {
 	t.Run("happy-path", func(t *testing.T) {
 		c := New()
 		a := &TypeA{}
-		require.NoError(t, c.Register("mocked-int", 10))
-		require.NoError(t, c.Register("type-a", a))
+		require.NoError(t, c.RegisterNamed("mocked-int", 10))
+		require.NoError(t, c.RegisterNamed("type-a", a))
 		retrievedA, err := c.Get("type-a")
 		require.NoError(t, err)
 		require.IsType(t, &TypeA{}, retrievedA)
@@ -99,9 +99,9 @@ func Test_Get(t *testing.T) {
 
 func Test_MustRegister_panic(t *testing.T) {
 	c := New()
-	require.NoError(t, c.Register("mock-int", 10))
+	require.NoError(t, c.RegisterNamed("mock-int", 10))
 	require.Panics(t, func() {
-		c.MustRegister("mock-int", 20)
+		c.MustRegisterNamed("mock-int", 20)
 	})
 }
 
@@ -114,7 +114,7 @@ func Test_MustGet_panic(t *testing.T) {
 
 func Test_MustGet_no_panic(t *testing.T) {
 	c := New()
-	c.MustRegister("mock-int", 10)
+	c.MustRegisterNamed("mock-int", 10)
 	require.NotPanics(t, func() {
 		require.EqualValues(t, 10, c.MustGet("mock-int"))
 	}, "it must panic as there is no request dep")
@@ -127,7 +127,7 @@ func Test_Register_factory_function(t *testing.T) {
 			return 0, 0, nil
 		}
 
-		err := c.Register("new-func", mockFunc)
+		err := c.RegisterNamed("new-func", mockFunc)
 		require.EqualError(t, err, "injector: unsupported factory function")
 	})
 
@@ -135,7 +135,7 @@ func Test_Register_factory_function(t *testing.T) {
 		c := New()
 		mockFunc := func() {}
 
-		err := c.Register("new-func", mockFunc)
+		err := c.RegisterNamed("new-func", mockFunc)
 		require.EqualError(t, err, "injector: unsupported factory function")
 	})
 
@@ -145,7 +145,7 @@ func Test_Register_factory_function(t *testing.T) {
 			return "", 0
 		}
 
-		err := c.Register("new-func", mockFunc)
+		err := c.RegisterNamed("new-func", mockFunc)
 		require.EqualError(t, err, "injector: 2nd output param must implement error")
 	})
 
@@ -155,7 +155,7 @@ func Test_Register_factory_function(t *testing.T) {
 			return 0, nil
 		}
 
-		err := c.Register("int-dep", mockFunc)
+		err := c.RegisterNamed("int-dep", mockFunc)
 		require.EqualError(t, err, "injector: couldn't find the dependency for string")
 	})
 
@@ -165,9 +165,9 @@ func Test_Register_factory_function(t *testing.T) {
 			return 0, nil
 		}
 
-		c.MustRegister("string-dep-1", "dep-1")
-		c.MustRegister("string-dep-2", "dep-2")
-		err := c.Register("int-dep", mockFunc)
+		c.MustRegisterNamed("string-dep-1", "dep-1")
+		c.MustRegisterNamed("string-dep-2", "dep-2")
+		err := c.RegisterNamed("int-dep", mockFunc)
 		require.EqualError(t, err, "injector: there is a conflict when finding the dependency for string")
 	})
 
@@ -177,8 +177,8 @@ func Test_Register_factory_function(t *testing.T) {
 			return 0, errors.New("random error")
 		}
 
-		c.MustRegister("string-dep-1", "dep-1")
-		err := c.Register("int-dep", mockFunc)
+		c.MustRegisterNamed("string-dep-1", "dep-1")
+		err := c.RegisterNamed("int-dep", mockFunc)
 		require.EqualError(t, err, "random error")
 	})
 
@@ -188,8 +188,8 @@ func Test_Register_factory_function(t *testing.T) {
 			return 1, nil
 		}
 
-		c.MustRegister("string-dep-1", "dep-1")
-		err := c.Register("int-dep", mockFunc)
+		c.MustRegisterNamed("string-dep-1", "dep-1")
+		err := c.RegisterNamed("int-dep", mockFunc)
 		require.NoError(t, err)
 		require.NotPanics(t, func() {
 			require.EqualValues(t, 1, c.MustGet("int-dep"))
@@ -202,7 +202,7 @@ func Test_Register_factory_function(t *testing.T) {
 			return 1, nil
 		}
 
-		err := c.Register("int-dep", mockFunc)
+		err := c.RegisterNamed("int-dep", mockFunc)
 		require.NoError(t, err)
 		require.NotPanics(t, func() {
 			require.EqualValues(t, 1, c.MustGet("int-dep"))
@@ -212,22 +212,22 @@ func Test_Register_factory_function(t *testing.T) {
 
 func Test_Register_auto(t *testing.T) {
 	c := New()
-	c.MustRegister("mocked-int", 10)
+	c.MustRegisterNamed("mocked-int", 10)
 	d := &TypeD{}
-	err := c.Register("type-d", d)
+	err := c.RegisterNamed("type-d", d)
 	require.NoError(t, err)
 	require.Equal(t, 10, d.Field, "data should be injected by type")
 }
 
 func Test_Register_reserved_name(t *testing.T) {
 	c := New()
-	err := c.Register("auto", 10)
+	err := c.RegisterNamed("auto", 10)
 	require.EqualError(t, err, "injector: auto is revserved, please use a different name")
 }
 
 func Test_Unnamed(t *testing.T) {
 	c := New()
-	err := c.Unnamed(10)
+	err := c.Register(10)
 	require.NoError(t, err, "New dependency shouldn't registered")
 	require.Len(t, c.dependencies, 1)
 	require.NotNil(t, c.dependencies["unnamed.0"])
@@ -236,27 +236,27 @@ func Test_Unnamed(t *testing.T) {
 
 func Test_Unnamed_error(t *testing.T) {
 	c := New()
-	err := c.Unnamed(&TypeA{})
+	err := c.Register(&TypeA{})
 	require.Error(t, err, "There should be error because of missing dependency")
 	require.Equal(t, 0, c.unnamedCounter)
-	require.NoError(t, c.Unnamed(10))
+	require.NoError(t, c.Register(10))
 	require.Len(t, c.dependencies, 1)
 	require.Equal(t, 0, c.unnamedCounter)
 	require.NotNil(t, c.dependencies["unnamed.0"], "Existing name should be reused")
-	require.NoError(t, c.Unnamed(11))
+	require.NoError(t, c.Register(11))
 	require.NotNil(t, c.dependencies["unnamed.1"], "New name should be created")
 }
 
 func Test_MustUnnamed(t *testing.T) {
 	c := New()
 	require.Panics(t, func() {
-		c.MustUnnamed(&TypeA{})
+		c.MustRegister(&TypeA{})
 	}, "There must be panic because of missing dependency")
 }
 
 func Test_Inject(t *testing.T) {
 	c := New()
-	require.NoError(t, c.Unnamed(10))
+	require.NoError(t, c.Register(10))
 
 	d := &TypeD{}
 	require.NoError(t, c.Inject(d), "there should be no error injecting dependencies")

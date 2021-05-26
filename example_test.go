@@ -33,12 +33,12 @@ func (s *ServiceBImpl) Render() {
 }
 
 func Example() {
-	// Typically an application will have exactly one instance of Container, and
+	// Typically an application will have exactly one instance of Injector, and
 	// you will create it and use it in the initialization phase:
 	c := injector.New()
 
-	// Use Register to seed an object.
-	errRegisterCfg := c.Register("config", 10)
+	// Use RegisterNamed to register an object into the Injector.
+	errRegisterCfg := c.RegisterNamed("config", 10)
 	if errRegisterCfg != nil {
 		fmt.Println(errRegisterCfg)
 	}
@@ -54,8 +54,8 @@ func Example() {
 		Data: cfg.(int),
 	}
 
-	// Register here is used to add another dependency to Container.
-	errRegisterA := c.Register("service-a", a)
+	// Register here is used to add another dependency to Injector.
+	errRegisterA := c.RegisterNamed("service-a", a)
 	if errRegisterA != nil {
 		fmt.Println(errRegisterA)
 	}
@@ -63,8 +63,8 @@ func Example() {
 	// Initialize and register serviceB.
 	b := &ServiceBImpl{}
 
-	// Register will add b to Container as well as inject a into b.ServiceA.
-	errRegisterB := c.Register("service-b", b)
+	// Register will add b to Injector as well as inject a into b.ServiceA.
+	errRegisterB := c.RegisterNamed("service-b", b)
 	if errRegisterB != nil {
 		fmt.Println(errRegisterB)
 	}
