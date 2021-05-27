@@ -79,10 +79,10 @@ func newServiceA() (*ServiceA, error) {
 // init func
 func initDependencies() {
   i := injector.New()
-  i.MustRegister("config", loadAppConfig)
-  i.MustRegister("logger", newLogger), 
+  i.MustRegisterNamed("config", loadAppConfig)
+  i.MustRegisterNamed("logger", newLogger), 
   // serviceA will be created and registered, logger will also be injected
-  i.MustRegister("serviceA", newServiceA),
+  i.MustRegister(newServiceA),
 }
 ```
 
@@ -104,8 +104,8 @@ type ServiceA struct {
 // init func
 func initDependencies() {
   i := injector.New()
-  i.MustRegister("logger", &loggerImpl{}), 
+  i.MustRegisterNamed("logger", &loggerImpl{}), 
   // serviceA will be registered, logger will also be injected by Logger type
-  i.MustRegister("serviceA", &ServiceA{}),
+  i.MustRegister(&ServiceA{}),
 }
 ```
