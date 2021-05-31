@@ -37,8 +37,8 @@ func Example() {
 	// you will create it and use it in the initialization phase:
 	c := injector.New()
 
-	// Use RegisterNamed to register an object into the Injector.
-	errRegisterCfg := c.RegisterNamed("config", 10)
+	// Use NamedComponent to register an object into the Injector.
+	errRegisterCfg := c.NamedComponent("config", 10)
 	if errRegisterCfg != nil {
 		fmt.Println(errRegisterCfg)
 	}
@@ -54,8 +54,8 @@ func Example() {
 		Data: cfg.(int),
 	}
 
-	// Register here is used to add another dependency to Injector.
-	errRegisterA := c.RegisterNamed("service-a", a)
+	// NamedComponent here is used to add another dependency to Injector.
+	errRegisterA := c.NamedComponent("service-a", a)
 	if errRegisterA != nil {
 		fmt.Println(errRegisterA)
 	}
@@ -63,8 +63,8 @@ func Example() {
 	// Initialize and register serviceB.
 	b := &ServiceBImpl{}
 
-	// Register will add b to Injector as well as inject a into b.ServiceA.
-	errRegisterB := c.RegisterNamed("service-b", b)
+	// NamedComponent will add b to Injector as well as inject a into b.ServiceA.
+	errRegisterB := c.NamedComponent("service-b", b)
 	if errRegisterB != nil {
 		fmt.Println(errRegisterB)
 	}
