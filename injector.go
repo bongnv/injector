@@ -3,7 +3,7 @@
 // injection in mind find difficulties in managing and injecting dependencies.
 // This library attempts to take care of it by containing all dependencies in
 // a central container and injecting requested dependencies automatically. Its use is
-// simple that you use Register method to register a dependency. The library will
+// simple that you use Component method to register a dependency. The library will
 // search for tagged fields and try to inject requested dependencies.
 //
 // It works using Go's reflection package and is inherently limited in what it
@@ -41,7 +41,7 @@ type Injector struct {
 	unnamedCounter int
 }
 
-// RegisterNamed registers new dependency with a name to the Injector. As name has to be unique,
+// NamedComponent registers new dependency with a name to the Injector. As name has to be unique,
 // it returns an error if name is not unique. An error is also returned if the function is unable to inject dependencies.
 // A factory function can be used:
 //
@@ -49,9 +49,9 @@ type Injector struct {
 //   // initialize a new logger
 // }
 //
-// we then use c.RegisterNamed("logger", newLogger) to register the logger dependency with that function.
+// we then use c.NamedComponent("logger", newLogger) to register the logger dependency with that function.
 // dependencies are also injected to the newly created struct from the factory function.
-func (c *Injector) RegisterNamed(name string, dep interface{}) error {
+func (c *Injector) NamedComponent(name string, dep interface{}) error {
 	if _, found := c.dependencies[name]; found {
 		return fmt.Errorf("injector: %s is already registered", name)
 	}
@@ -85,10 +85,10 @@ func (c *Injector) RegisterNamed(name string, dep interface{}) error {
 	return nil
 }
 
-// MustRegisterNamed is the similar to RegisterNamed. Instead of returning an error,
+// MustNamedComponent is the similar to NamedComponent. Instead of returning an error,
 // it panics if anything goes wrong.
-func (c *Injector) MustRegisterNamed(name string, dep interface{}) {
-	if err := c.RegisterNamed(name, dep); err != nil {
+func (c *Injector) MustNamedComponent(name string, dep interface{}) {
+	if err := c.NamedComponent(name, dep); err != nil {
 		panic(err)
 	}
 }
@@ -115,10 +115,10 @@ func (c *Injector) MustGet(name string) interface{} {
 	return dep
 }
 
-// Register registers a new dependency without specifying the name.
-// It's handy for injecting by types. However, supporting by names won't be supported.
+// Component registers a new dependency without specifying the name.
+// It's handy for injecting by types.
 // One must be careful when injecting by types as it can cause conflicts easily.
-func (c *Injector) Register(dep interface{}) error {
+func (c *Injector) Component(dep interface{}) error {
 	for {
 		newName := fmt.Sprintf("%s.%d", unnamedPrefix, c.unnamedCounter)
 		if _, ok := c.dependencies[newName]; ok {
@@ -126,13 +126,13 @@ func (c *Injector) Register(dep interface{}) error {
 			continue
 		}
 
-		return c.RegisterNamed(newName, dep)
+		return c.NamedComponent(newName, dep)
 	}
 }
 
-// MustRegister is similar to Register. Instead of returning an error, it will panic if there is any error.
-func (c *Injector) MustRegister(dep interface{}) {
-	if err := c.Register(dep); err != nil {
+// MustComponent is similar to Component. Instead of returning an error, it will panic if there is any error.
+func (c *Injector) MustComponent(dep interface{}) {
+	if err := c.Component(dep); err != nil {
 		panic(err)
 	}
 }
