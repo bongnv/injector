@@ -21,7 +21,7 @@ func hasInjectTag(dep *dependency) bool {
 		return false
 	}
 
-	for i := 0; i < dep.reflectValue.NumField(); i++ {
+	for i := 0; i < dep.reflectType.NumField(); i++ {
 		structField := dep.reflectType.Field(i)
 		if _, ok := structField.Tag.Lookup("injector"); ok {
 			return true

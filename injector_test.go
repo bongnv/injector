@@ -262,3 +262,45 @@ func Test_Inject(t *testing.T) {
 	require.NoError(t, c.Inject(d), "there should be no error injecting dependencies")
 	require.Equal(t, 10, d.Field, "data should be injected")
 }
+
+type mockFactory struct {
+	mockResult interface{}
+	mockErr    error
+}
+
+func (m mockFactory) Create() (interface{}, error) {
+	return m.mockResult, m.mockErr
+}
+
+type mockFactoryWithInjection struct {
+	IntDep int `injector:"auto"`
+}
+
+func (m mockFactoryWithInjection) Create() (interface{}, error) {
+	return "newObject", nil
+}
+
+func Test_CreateNamedComponent(t *testing.T) {
+	c := New()
+	require.NoError(t, c.CreateNamedComponent("component", &mockFactory{
+		mockResult: "newObject",
+	}))
+	require.Len(t, c.dependencies, 1)
+	ret, err := c.Get("component")
+	require.NoError(t, err)
+	require.Equal(t, "newObject", ret)
+}
+
+func Test_CreateComponent_error(t *testing.T) {
+	c := New()
+	err := c.CreateComponent(&mockFactory{
+		mockErr: errors.New("random error"),
+	})
+	require.EqualError(t, err, "random error")
+}
+
+func Test_CreateNamedComponent_inject_failed(t *testing.T) {
+	c := New()
+	err := c.CreateComponent(&mockFactoryWithInjection{})
+	require.EqualError(t, err, "injector: couldn't find the dependency for int")
+}
