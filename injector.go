@@ -35,6 +35,18 @@ type dependency struct {
 	reflectType  reflect.Type
 }
 
+// Factory defines a factory that creates a new component.
+type Factory interface {
+	Create() (interface{}, error)
+}
+
+// New creates a new instance of Injector.
+func New() *Injector {
+	return &Injector{
+		dependencies: map[string]*dependency{},
+	}
+}
+
 // Injector contains all dependencies. An injector can be created by New method.
 type Injector struct {
 	dependencies   map[string]*dependency
@@ -85,10 +97,51 @@ func (c *Injector) NamedComponent(name string, dep interface{}) error {
 	return nil
 }
 
-// MustNamedComponent is the similar to NamedComponent. Instead of returning an error,
+// MustNamedComponent is similar to NamedComponent. Instead of returning an error,
 // it panics if anything goes wrong.
 func (c *Injector) MustNamedComponent(name string, dep interface{}) {
 	if err := c.NamedComponent(name, dep); err != nil {
+		panic(err)
+	}
+}
+
+// CreateComponent creates a new component by invoking the Create function in a given factory.
+// Before creating the component, it will inject dependencies into the factory.
+// After creating the component, it will inject dependencies to the component as well.
+// It returns error if there is any.
+//
+// With CreateComponent, the name will be generated for the generated component.
+func (c *Injector) CreateComponent(f Factory) error {
+	return c.CreateNamedComponent(c.nextGeneratedName(), f)
+}
+
+// MustCreateComponent is similar to CreateComponent. However, it panics if there is any error.
+func (c *Injector) MustCreateComponent(f Factory) {
+	if err := c.CreateComponent(f); err != nil {
+		panic(err)
+	}
+}
+
+// CreateNamedComponent creates a new component by invoking the Create function in a given factory.
+// Before creating the component, it will inject dependencies into the factory.
+// After creating the component, it will inject dependencies to the component as well.
+// It returns error if there is any.
+func (c *Injector) CreateNamedComponent(name string, f Factory) error {
+	if err := c.Inject(f); err != nil {
+		return err
+	}
+
+	component, err := f.Create()
+	if err != nil {
+		return err
+	}
+
+	return c.NamedComponent(name, component)
+}
+
+// MustCreateNamedComponent is similar to CreateNamedComponent. However, it panics if there is any error.
+func (c *Injector) MustCreateNamedComponent(name string, f Factory) {
+	if err := c.CreateNamedComponent(name, f); err != nil {
 		panic(err)
 	}
 }
@@ -119,15 +172,7 @@ func (c *Injector) MustGet(name string) interface{} {
 // It's handy for injecting by types.
 // One must be careful when injecting by types as it can cause conflicts easily.
 func (c *Injector) Component(dep interface{}) error {
-	for {
-		newName := fmt.Sprintf("%s.%d", unnamedPrefix, c.unnamedCounter)
-		if _, ok := c.dependencies[newName]; ok {
-			c.unnamedCounter++
-			continue
-		}
-
-		return c.NamedComponent(newName, dep)
-	}
+	return c.NamedComponent(c.nextGeneratedName(), dep)
 }
 
 // MustComponent is similar to Component. Instead of returning an error, it will panic if there is any error.
@@ -258,9 +303,12 @@ func (c *Injector) findByType(t reflect.Type) (*dependency, error) {
 	return foundVal, nil
 }
 
-// New creates a new instance of Injector.
-func New() *Injector {
-	return &Injector{
-		dependencies: map[string]*dependency{},
+func (c *Injector) nextGeneratedName() string {
+	for {
+		newName := fmt.Sprintf("%s.%d", unnamedPrefix, c.unnamedCounter)
+		if _, ok := c.dependencies[newName]; !ok {
+			return newName
+		}
+		c.unnamedCounter++
 	}
 }

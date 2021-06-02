@@ -53,6 +53,40 @@ func yourInitFunc() {
 
 ## Usages
 
+### Registering dependencies by factories
+
+`injector` supports registering dependencies by factories with `CreateComponent` and `CreateNamedComponent`. The given factory must implement the `Factory` interface and the `Create` will be invoked to create a new component.
+
+Before the `Create` method is invoked, `injector` will inject dependencies to the given factory. After the `Create` method is invoked, `injector` will also inject dependencies to the created component.
+
+```go
+// ServiceA has Logger as a dependency
+type ServiceA struct {
+  Logger Logger `injector:"logger"`
+}
+
+type ServiceAFactory struct {
+  Config *AppConfig `injector:"config"`
+}
+
+// Create creates a new instance of ServiceA
+func (f ServiceAFactory) Create() (interface{}, error) {
+  // logic to create A via Config
+  return &ServiceA{}, nil
+}
+
+// initialize dependencies
+func initDependencies() {
+  i := injector.New()
+  // Register Logger and AppConfig
+  i.MustComponent(&LoggerImpl{})
+  i.MustComponent(&&AppConfig{})
+
+  // Create ServiceA via Factory, dependencies will be injected.
+  i.MustCreateComponent(&ServiceAFactory{})
+}
+```
+
 ### Registering dependencies by factory functions
 
 `loadAppConfig`, `newLogger` and `newServiceA` are three factory functions to create different components. `injector` allows loading dependencies as well as registering dependencies created by those functions.
