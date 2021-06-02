@@ -304,3 +304,17 @@ func Test_CreateNamedComponent_inject_failed(t *testing.T) {
 	err := c.CreateComponent(&mockFactoryWithInjection{})
 	require.EqualError(t, err, "injector: couldn't find the dependency for int")
 }
+
+func Test_MustCreateComponent(t *testing.T) {
+	c := New()
+	require.Panics(t, func() {
+		c.MustCreateComponent(&mockFactoryWithInjection{})
+	})
+}
+
+func Test_MustCreateNamedComponent(t *testing.T) {
+	c := New()
+	require.Panics(t, func() {
+		c.MustCreateNamedComponent("someName", &mockFactoryWithInjection{})
+	})
+}

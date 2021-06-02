@@ -97,7 +97,7 @@ func (c *Injector) NamedComponent(name string, dep interface{}) error {
 	return nil
 }
 
-// MustNamedComponent is the similar to NamedComponent. Instead of returning an error,
+// MustNamedComponent is similar to NamedComponent. Instead of returning an error,
 // it panics if anything goes wrong.
 func (c *Injector) MustNamedComponent(name string, dep interface{}) {
 	if err := c.NamedComponent(name, dep); err != nil {
@@ -110,9 +110,16 @@ func (c *Injector) MustNamedComponent(name string, dep interface{}) {
 // After creating the component, it will inject dependencies to the component as well.
 // It returns error if there is any.
 //
-// CreateComponent is similar to CreateNamedComponent but it generates name for the generated component.
+// With CreateComponent, the name will be generated for the generated component.
 func (c *Injector) CreateComponent(f Factory) error {
 	return c.CreateNamedComponent(c.nextGeneratedName(), f)
+}
+
+// MustCreateComponent is similar to CreateComponent. However, it panics if there is any error.
+func (c *Injector) MustCreateComponent(f Factory) {
+	if err := c.CreateComponent(f); err != nil {
+		panic(err)
+	}
 }
 
 // CreateNamedComponent creates a new component by invoking the Create function in a given factory.
@@ -130,6 +137,13 @@ func (c *Injector) CreateNamedComponent(name string, f Factory) error {
 	}
 
 	return c.NamedComponent(name, component)
+}
+
+// MustCreateNamedComponent is similar to CreateNamedComponent. However, it panics if there is any error.
+func (c *Injector) MustCreateNamedComponent(name string, f Factory) {
+	if err := c.CreateNamedComponent(name, f); err != nil {
+		panic(err)
+	}
 }
 
 // Get loads a dependency from the Injector using name.
