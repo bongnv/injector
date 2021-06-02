@@ -9,7 +9,7 @@ import (
 
 func Test_hasInjectTag_no_tags(t *testing.T) {
 	type structNoTag struct{}
-	v := &structNoTag{}
+	v := structNoTag{}
 	require.False(t, hasInjectTag(&dependency{
 		value:        v,
 		reflectValue: reflect.ValueOf(v),
