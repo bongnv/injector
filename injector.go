@@ -63,135 +63,109 @@ type Injector struct {
 //
 // we then use c.NamedComponent("logger", newLogger) to register the logger dependency with that function.
 // dependencies are also injected to the newly created struct from the factory function.
-func (c *Injector) NamedComponent(name string, dep interface{}) error {
-	if _, found := c.dependencies[name]; found {
-		return fmt.Errorf("injector: %s is already registered", name)
-	}
+func (c *Injector) NamedComponent(name string, dep interface{}) {
+	c.validateNamne(name)
 
-	if name == autoInjectionTag {
-		return fmt.Errorf("injector: %s is revserved, please use a different name", autoInjectionTag)
-	}
-
-	var toAddDep *dependency
-	depType := reflect.TypeOf(dep)
-	if depType.Kind() == reflect.Func {
-		createdDep, err := c.executeFunc(dep, depType)
-		if err != nil {
-			return err
-		}
-
-		toAddDep = createdDep
-	} else {
-		toAddDep = &dependency{
-			value:        dep,
-			reflectType:  depType,
-			reflectValue: reflect.ValueOf(dep),
-		}
+	toAddDep := &dependency{
+		value:        dep,
+		reflectType:  reflect.TypeOf(dep),
+		reflectValue: reflect.ValueOf(dep),
 	}
 
 	if err := c.populate(toAddDep); err != nil {
-		return err
+		panic(err)
 	}
 
 	c.dependencies[name] = toAddDep
-	return nil
 }
 
-// MustNamedComponent is similar to NamedComponent. Instead of returning an error,
-// it panics if anything goes wrong.
-func (c *Injector) MustNamedComponent(name string, dep interface{}) {
-	if err := c.NamedComponent(name, dep); err != nil {
-		panic(err)
+func (c *Injector) validateNamne(name string) {
+	if _, found := c.dependencies[name]; found {
+		panic(fmt.Errorf("injector: %s is already registered", name))
+	}
+
+	if name == autoInjectionTag {
+		panic(fmt.Errorf("injector: %s is revserved, please use a different name", autoInjectionTag))
 	}
 }
 
-// CreateComponent creates a new component by invoking the Create function in a given factory.
+// NamedComponentFromFunc creates a new named component from a factory function
+// and registers the created component to the injector.
+func (c *Injector) NamedComponentFromFunc(name string, factoryFn interface{}) {
+	c.validateNamne(name)
+
+	fnType := reflect.TypeOf(factoryFn)
+	if fnType.Kind() != reflect.Func {
+		panic(errors.New("injector: a factory function is expected"))
+	}
+
+	createdDep, err := c.executeFunc(factoryFn, fnType)
+	if err != nil {
+		panic(err)
+	}
+
+	c.dependencies[name] = createdDep
+}
+
+// ComponentFromFunc creates a new component from a factory function.
+// It's similar to NamedComponentFromFunc, instead a name will be generated for the component.
+func (c *Injector) ComponentFromFunc(factoryFn interface{}) {
+	c.NamedComponentFromFunc(c.nextGeneratedName(), factoryFn)
+}
+
+// ComponentFromFactory creates a new component by invoking the Create function in a given factory.
 // Before creating the component, it will inject dependencies into the factory.
 // After creating the component, it will inject dependencies to the component as well.
 // It returns error if there is any.
 //
-// With CreateComponent, the name will be generated for the generated component.
-func (c *Injector) CreateComponent(f Factory) error {
-	return c.CreateNamedComponent(c.nextGeneratedName(), f)
+// With ComponentFromFactory, the name will be generated for the generated component.
+func (c *Injector) ComponentFromFactory(f Factory) {
+	c.NamedComponentFromFactory(c.nextGeneratedName(), f)
 }
 
-// MustCreateComponent is similar to CreateComponent. However, it panics if there is any error.
-func (c *Injector) MustCreateComponent(f Factory) {
-	if err := c.CreateComponent(f); err != nil {
-		panic(err)
-	}
-}
-
-// CreateNamedComponent creates a new component by invoking the Create function in a given factory.
+// NamedComponentFromFactory creates a new component by invoking the Create function in a given factory.
 // Before creating the component, it will inject dependencies into the factory.
 // After creating the component, it will inject dependencies to the component as well.
-// It returns error if there is any.
-func (c *Injector) CreateNamedComponent(name string, f Factory) error {
-	if err := c.Inject(f); err != nil {
-		return err
-	}
+func (c *Injector) NamedComponentFromFactory(name string, f Factory) {
+	c.Inject(f)
 
 	component, err := f.Create()
 	if err != nil {
-		return err
-	}
-
-	return c.NamedComponent(name, component)
-}
-
-// MustCreateNamedComponent is similar to CreateNamedComponent. However, it panics if there is any error.
-func (c *Injector) MustCreateNamedComponent(name string, f Factory) {
-	if err := c.CreateNamedComponent(name, f); err != nil {
 		panic(err)
 	}
+
+	c.NamedComponent(name, component)
 }
 
 // Get loads a dependency from the Injector using name.
-// It returns an error if the requested dependency couldn't be found.
-func (c *Injector) Get(name string) (interface{}, error) {
+func (c *Injector) Get(name string) interface{} {
 	dep, found := c.dependencies[name]
 	if !found {
-		return nil, errors.New("injector: the requested dependency couldn't be found")
+		panic(errors.New("injector: the requested dependency couldn't be found"))
 	}
 
-	return dep.value, nil
-}
-
-// MustGet is the similar to Get. Instead of returning an error,
-// it panics if anything goes wrong.
-func (c *Injector) MustGet(name string) interface{} {
-	dep, err := c.Get(name)
-	if err != nil {
-		panic(err)
-	}
-
-	return dep
+	return dep.value
 }
 
 // Component registers a new dependency without specifying the name.
 // It's handy for injecting by types.
 // One must be careful when injecting by types as it can cause conflicts easily.
-func (c *Injector) Component(dep interface{}) error {
-	return c.NamedComponent(c.nextGeneratedName(), dep)
-}
-
-// MustComponent is similar to Component. Instead of returning an error, it will panic if there is any error.
-func (c *Injector) MustComponent(dep interface{}) {
-	if err := c.Component(dep); err != nil {
-		panic(err)
-	}
+func (c *Injector) Component(dep interface{}) {
+	c.NamedComponent(c.nextGeneratedName(), dep)
 }
 
 // Inject injects dependencies to a given object. It returns error if there is any.
 // The object should be a pointer of struct, otherwise dependencies won't be injected.
-func (c *Injector) Inject(object interface{}) error {
+func (c *Injector) Inject(object interface{}) {
 	dep := &dependency{
 		value:        object,
 		reflectType:  reflect.TypeOf(object),
 		reflectValue: reflect.ValueOf(object),
 	}
 
-	return c.populate(dep)
+	if err := c.populate(dep); err != nil {
+		panic(err)
+	}
 }
 
 func (c *Injector) populate(dep *dependency) error {

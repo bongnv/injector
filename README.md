@@ -43,11 +43,11 @@ func yourInitFunc() {
   i := injector.New()
 
   // add ServiceAImpl to the injector
-  i.MustComponent(&ServiceAImpl{})
+  i.Component(&ServiceAImpl{})
 
   // create an instance of ServiceBImpl and inject its dependencies
   b := &ServiceBImpl{}
-  i.MustComponent(b)
+  i.Component(b)
 }
 ```
 
@@ -55,7 +55,7 @@ func yourInitFunc() {
 
 ### Registering dependencies by factories
 
-`injector` supports registering dependencies by factories with `CreateComponent` and `CreateNamedComponent`. The given factory must implement the `Factory` interface and the `Create` will be invoked to create a new component.
+`injector` supports registering dependencies by factories with `ComponentFromFactory` and `NamedComponentFromFactory`. The given factory must implement the `Factory` interface and the `Create` will be invoked to create a new component.
 
 Before the `Create` method is invoked, `injector` will inject dependencies to the given factory. After the `Create` method is invoked, `injector` will also inject dependencies to the created component.
 
@@ -79,11 +79,11 @@ func (f ServiceAFactory) Create() (interface{}, error) {
 func initDependencies() {
   i := injector.New()
   // Register Logger and AppConfig
-  i.MustComponent(&LoggerImpl{})
-  i.MustComponent(&&AppConfig{})
+  i.Component(&LoggerImpl{})
+  i.Component(&&AppConfig{})
 
   // Create ServiceA via Factory, dependencies will be injected.
-  i.MustCreateComponent(&ServiceAFactory{})
+  i.ComponentFromFactory(&ServiceAFactory{})
 }
 ```
 
@@ -113,10 +113,10 @@ func newServiceA() (*ServiceA, error) {
 // init func
 func initDependencies() {
   i := injector.New()
-  i.MustNamedComponent("config", loadAppConfig)
-  i.MustNamedComponent("logger", newLogger), 
+  i.ComponentFromFunc("config", loadAppConfig)
+  i.ComponentFromFunc("logger", newLogger), 
   // serviceA will be created and registered, logger will also be injected
-  i.MustComponent(newServiceA),
+  i.Component(newServiceA),
 }
 ```
 
@@ -124,7 +124,7 @@ func initDependencies() {
 
 As `loggerImpl` satisfies the interface `Logger`, it will be injected into `ServiceA` automatically. If there are two dependencies that are eligible while injecting, an error will be returned. `auto` is the keyword to indicate the type-based injection.
 
-`Unnamed` and `MustUnnamed` can be used to register dependencies if names is not used to identifying the dependency.
+`Component` can be used to register dependencies if names are not used to identifying the dependency.
 
 ```go
 // loggerImpl is an implementation that satisfies Logger interface.
@@ -138,8 +138,8 @@ type ServiceA struct {
 // init func
 func initDependencies() {
   i := injector.New()
-  i.MustNamedComponent("logger", &loggerImpl{}), 
+  i.Component(&loggerImpl{}), 
   // serviceA will be registered, logger will also be injected by Logger type
-  i.MustComponent(&ServiceA{}),
+  i.Component(&ServiceA{}),
 }
 ```
