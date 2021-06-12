@@ -38,16 +38,10 @@ func Example() {
 	c := injector.New()
 
 	// Use NamedComponent to register an object into the Injector.
-	errRegisterCfg := c.NamedComponent("config", 10)
-	if errRegisterCfg != nil {
-		fmt.Println(errRegisterCfg)
-	}
+	c.NamedComponent("config", 10)
 
 	// We can get a dependency by name and injectoror it manually.
-	cfg, err := c.Get("config")
-	if err != nil {
-		fmt.Println(err)
-	}
+	cfg := c.Get("config")
 
 	// Initialize and register serviceA. cfg is injected manually.
 	a := &ServiceAImpl{
@@ -55,19 +49,13 @@ func Example() {
 	}
 
 	// NamedComponent here is used to add another dependency to Injector.
-	errRegisterA := c.NamedComponent("service-a", a)
-	if errRegisterA != nil {
-		fmt.Println(errRegisterA)
-	}
+	c.NamedComponent("service-a", a)
 
 	// Initialize and register serviceB.
 	b := &ServiceBImpl{}
 
 	// NamedComponent will add b to Injector as well as inject a into b.ServiceA.
-	errRegisterB := c.NamedComponent("service-b", b)
-	if errRegisterB != nil {
-		fmt.Println(errRegisterB)
-	}
+	c.NamedComponent("service-b", b)
 
 	b.Render()
 	// Output:

@@ -11,12 +11,12 @@ func (f ServiceBFactory) Create() (interface{}, error) {
 
 func ExampleFactory() {
 	c := injector.New()
-	c.MustNamedComponent("service-a", &ServiceAImpl{
+	c.NamedComponent("service-a", &ServiceAImpl{
 		Data: 1,
 	})
 
-	c.MustCreateNamedComponent("service-b", &ServiceBFactory{})
-	b := c.MustGet("service-b").(*ServiceBImpl)
+	c.NamedComponentFromFactory("service-b", &ServiceBFactory{})
+	b := c.Get("service-b").(*ServiceBImpl)
 	b.Render()
 	// Output:
 	// Going to render ServiceA
