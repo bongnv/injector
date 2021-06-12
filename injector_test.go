@@ -152,6 +152,17 @@ func Test_ComponentFromFunc(t *testing.T) {
 		})
 	})
 
+	t.Run("missing-dependency-type", func(t *testing.T) {
+		c := New()
+		mockFunc := func() (*TypeA, error) {
+			return &TypeA{}, nil
+		}
+
+		require.PanicsWithError(t, "injector: mocked-int is not registered", func() {
+			c.ComponentFromFunc(mockFunc)
+		})
+	})
+
 	t.Run("conflict-dependency", func(t *testing.T) {
 		c := New()
 		mockFunc := func(v string) (int, error) {
