@@ -152,6 +152,17 @@ func Test_ComponentFromFunc(t *testing.T) {
 		})
 	})
 
+	t.Run("missing-dependency-type", func(t *testing.T) {
+		c := New()
+		mockFunc := func() (*TypeA, error) {
+			return &TypeA{}, nil
+		}
+
+		require.PanicsWithError(t, "injector: mocked-int is not registered", func() {
+			c.ComponentFromFunc(mockFunc)
+		})
+	})
+
 	t.Run("conflict-dependency", func(t *testing.T) {
 		c := New()
 		mockFunc := func(v string) (int, error) {
@@ -179,13 +190,15 @@ func Test_ComponentFromFunc(t *testing.T) {
 
 	t.Run("happy-path-with-dependency", func(t *testing.T) {
 		c := New()
-		mockFunc := func(v string) (int, error) {
-			return 1, nil
+		mockFunc := func(v string) (*TypeA, error) {
+			return &TypeA{}, nil
 		}
 
-		c.NamedComponent("string-dep-1", "dep-1")
-		c.NamedComponentFromFunc("int-dep", mockFunc)
-		require.EqualValues(t, 1, c.Get("int-dep"))
+		c.Component("dep-1")
+		c.NamedComponent("mocked-int", 1)
+		c.NamedComponentFromFunc("type-a", mockFunc)
+		a := c.Get("type-a").(*TypeA)
+		require.EqualValues(t, 1, a.Field)
 	})
 
 	t.Run("happy-path-without-dependency", func(t *testing.T) {
@@ -222,6 +235,13 @@ func Test_Component(t *testing.T) {
 	require.Len(t, c.dependencies, 1)
 	require.NotNil(t, c.dependencies["unnamed.0"])
 	require.Equal(t, 0, c.unnamedCounter)
+}
+
+func Test_Component_taken(t *testing.T) {
+	c := New()
+	c.NamedComponent("unnamed.0", 10)
+	c.Component(11)
+	require.EqualValues(t, 11, c.Get("unnamed.1"))
 }
 
 func Test_Inject(t *testing.T) {

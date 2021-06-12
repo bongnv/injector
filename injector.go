@@ -79,16 +79,6 @@ func (c *Injector) NamedComponent(name string, dep interface{}) {
 	c.dependencies[name] = toAddDep
 }
 
-func (c *Injector) validateNamne(name string) {
-	if _, found := c.dependencies[name]; found {
-		panic(fmt.Errorf("injector: %s is already registered", name))
-	}
-
-	if name == autoInjectionTag {
-		panic(fmt.Errorf("injector: %s is revserved, please use a different name", autoInjectionTag))
-	}
-}
-
 // NamedComponentFromFunc creates a new named component from a factory function
 // and registers the created component to the injector.
 func (c *Injector) NamedComponentFromFunc(name string, factoryFn interface{}) {
@@ -101,6 +91,10 @@ func (c *Injector) NamedComponentFromFunc(name string, factoryFn interface{}) {
 
 	createdDep, err := c.executeFunc(factoryFn, fnType)
 	if err != nil {
+		panic(err)
+	}
+
+	if err := c.populate(createdDep); err != nil {
 		panic(err)
 	}
 
@@ -284,5 +278,15 @@ func (c *Injector) nextGeneratedName() string {
 			return newName
 		}
 		c.unnamedCounter++
+	}
+}
+
+func (c *Injector) validateNamne(name string) {
+	if _, found := c.dependencies[name]; found {
+		panic(fmt.Errorf("injector: %s is already registered", name))
+	}
+
+	if name == autoInjectionTag {
+		panic(fmt.Errorf("injector: %s is revserved, please use a different name", autoInjectionTag))
 	}
 }
